@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="https://github.com/Xiaowameijiao/huoshiicon.github.io/blob/main/huoshiicon.jpg?raw=true">
+<title>火狮H.S.T. 绘画</title>
+<style>
+    body {
+        background-color: white;
+    }
+    canvas {
+        border: 4px solid black;
+        cursor: crosshair;
+        width: 100vmin;
+        height: 80vmin;
+    }
+
+    .button {
+        background-color: #4CAF50;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 10px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    .button:hover {
+        background-color: #45a049;
+    }
+
+    #clearButton {
+        background-color: #313131;
+    }
+
+    #undoButton {
+        background-color: black; 
+    }
+
+    #redoButton {
+        background-color: black; 
+    }
+
+    #shareButton {
+        background-color: #A9A9A9;
+    }
+
+    #shareButton:hover {
+        background-color: #005f6b;
+    }
+
+    .fixed-text {
+        position: fixed;
+        bottom: 10px; 
+        left: 10px;
+        color: #1AE5C9;
+        margin: 5px; 
+    }
+
+    .bottom-bar {
+        width: 100%;
+        height: 50px; 
+        background-color: #313131;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: -1;
+    }
+
+    @media (max-width: 600px) {
+        .button {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            width: 80vmin;
+            height: 80vmin;
+        }
+    }
+</style>
+</head>
+<body>
+            <center>
+        <button style="color: white;" class="button" id="exitButton" onclick="exitGame()">退出画板</button>
+        颜色选项: <input type="color" id="colorPicker">
+        大/小: <input type="range" min="1" max="20" value="5" id="thicknessSlider">
+               <input type="number" min="1" max="20" value="5" id="penSizeInput">
+        <button style="color: #008200;" class="button" id="clearButton" onclick="clearCanvas()">清除</button>
+        <button style="color: #008200;" class="button" id="undoButton" onclick="undo()">↺</button>
+        <button style="color: #008200;" class="button" id="redoButton" onclick="redo()">↻</button>
+        <button style="color: black;" class="button" id="shareButton" onclick="shareCanvas()">保存作品 ⇩</button>
+        <br>
+        <canvas id="paintCanvas" width="600" height="600"></canvas><br>
+    </center>
+    <div class="bottom-bar"></div>
+    <p class="fixed-text">火狮 H.S.T.</p>
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const thicknessSlider = document.getElementById('thicknessSlider');
+        const penSizeInput = document.getElementById('penSizeInput');
+        let isPainting = false;
+        let undoStack = [];
+        let redoStack = [];
+
+        function getCanvasCoords(event) {
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+
+            if (event.touches) {
+                x = event.touches[0].clientX - rect.left;
+                y = event.touches[0].clientY - rect.top;
+            } else {
+                x = event.clientX - rect.left;
+                y = event.clientY - rect.top;
+            }
+
+            x *= canvas.width / rect.width;
+            y *= canvas.height / rect.height;
+
+            return { x, y };
+        }
+
+        function startPaint(event) {
+            isPainting = true;
+            const coords = getCanvasCoords(event);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+            paint(event);
+        }
+
+        function paint(event) {
+            if (!isPainting) return;
+            event.preventDefault();
+            const coords = getCanvasCoords(event);
+            ctx.lineWidth = penSizeInput.value;
+            thicknessSlider.value = penSizeInput.value; 
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+        }
+
+        function stopPaint() {
+            if (isPainting) {
+                undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                redoStack = [];
+            }
+            isPainting = false;
+            ctx.beginPath();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+            redoStack = [];
+        }
+
+        function undo() {
+            if (undoStack.length > 1) {
+                redoStack.push(undoStack.pop());
+                ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                undoStack.push(redoStack.pop());
+                ctx.putImageData(undoStack[undoStack.length - 1], 0, 0);
+            }
+        }
+
+        function shareCanvas() {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+            tempCtx.drawImage(canvas, 0, 0);
+
+            const image = tempCanvas.toDataURL();
+            const link = document.createElement('a');
+            link.href = image;
+            link.download =  '火狮绘画hst.png';
+            link.click();
+        }
+
+        function exitGame() {
+            history.back();
+        }
+
+        canvas.addEventListener('mousedown', startPaint);
+        canvas.addEventListener('mousemove', paint);
+        canvas.addEventListener('mouseup', stopPaint);
+        canvas.addEventListener('mouseleave', stopPaint);
+
+        canvas.addEventListener('touchstart', startPaint);
+        canvas.addEventListener('touchmove', paint);
+        canvas.addEventListener('touchend', stopPaint);
+
+        penSizeInput.addEventListener('input', function() {
+            let value = Math.max(1, Math.min(20, this.value));
+            this.value = value;  
+            thicknessSlider.value = value;
+        });
+
+        thicknessSlider.addEventListener('input', function() {
+            let value = Math.max(1, Math.min(20, this.value));
+            this.value = value;  
+            penSizeInput.value = value;
+        });
+    </script>
+</body>
+</html>
