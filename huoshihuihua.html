@@ -3,17 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="https://github.com/Xiaowameijiao/huoshiicon.github.io/blob/main/huoshiicon.jpg?raw=true">
-<title>火狮H.S.T. 绘画</title>
+<link rel="icon" type="image/x-icon" href="https://github.com/Xiaowameijiao/huoshiicon.github.io/blob/main/huoshiicon.jpg?raw=true">
+<title>火狮绘画</title>
 <style>
     body {
         background-color: white;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
     }
+
+    #controls-container {
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 10px 0;
+        text-align: center;
+    }
+
     canvas {
-        border: 4px solid black;
+        border: none;
         cursor: crosshair;
-        width: 100vmin;
-        height: 80vmin;
+        display: block;
     }
 
     .button {
@@ -60,6 +70,7 @@
         left: 10px;
         color: #1AE5C9;
         margin: 5px; 
+        z-index: 2;
     }
 
     .bottom-bar {
@@ -69,7 +80,7 @@
         position: fixed;
         bottom: 0;
         left: 0;
-        z-index: -1;
+        z-index: 1;
     }
 
     @media (max-width: 600px) {
@@ -77,38 +88,47 @@
             width: 100%;
             box-sizing: border-box;
         }
-
-        canvas {
-            width: 80vmin;
-            height: 80vmin;
-        }
     }
 </style>
 </head>
 <body>
-            <center>
-        <button style="color: white;" class="button" id="exitButton" onclick="exitGame()">退出画板</button>
-        颜色选项: <input type="color" id="colorPicker">
-        大/小: <input type="range" min="1" max="20" value="5" id="thicknessSlider">
-               <input type="number" min="1" max="20" value="5" id="penSizeInput">
-        <button style="color: #008200;" class="button" id="clearButton" onclick="clearCanvas()">清除</button>
-        <button style="color: #008200;" class="button" id="undoButton" onclick="undo()">↺</button>
-        <button style="color: #008200;" class="button" id="redoButton" onclick="redo()">↻</button>
-        <button style="color: black;" class="button" id="shareButton" onclick="shareCanvas()">保存作品 ⇩</button>
-        <br>
-        <canvas id="paintCanvas" width="600" height="600"></canvas><br>
-    </center>
+    <div id="controls-container">
+        <div id="controls">
+            <button style="color: white;" class="button" id="exitButton" onclick="exitGame()">退出画板</button>
+            <button style="color: #008200;" class="button" id="clearButton" onclick="clearCanvas()">清除</button>
+            颜色选项: <input type="color" id="colorPicker">
+            大/小: <input type="range" min="1" max="20" value="5" id="thicknessSlider">
+                   <input type="number" min="1" max="20" value="5" id="penSizeInput">
+            <button style="color: #008200;" class="button" id="undoButton" onclick="undo()">↺</button>
+            <button style="color: #008200;" class="button" id="redoButton" onclick="redo()">↻</button>
+            <button style="color: black;" class="button" id="addImageButton" onclick="addImage()">添加图片</button>
+            <button style="color: black;" class="button" id="shareButton" onclick="shareCanvas()">保存作品 ⇩</button>
+            <input type="file" id="imageInput" style="display: none;" accept="image/*" onchange="loadImage(event)">
+        </div>
+    </div>
+    <canvas id="paintCanvas"></canvas>
     <div class="bottom-bar"></div>
-    <p class="fixed-text">火狮 H.S.T.</p>
+    <p class="fixed-text">火狮 H.S.T.     <a style="color: #008200;"> 提示: 千万别放大网站，移动网站或影响到网站的东西，否则画作会被自动删除。</a></p>
+
     <script>
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         const colorPicker = document.getElementById('colorPicker');
         const thicknessSlider = document.getElementById('thicknessSlider');
         const penSizeInput = document.getElementById('penSizeInput');
+        const imageInput = document.getElementById('imageInput');
         let isPainting = false;
         let undoStack = [];
         let redoStack = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - document.getElementById('controls-container').offsetHeight - document.querySelector('.bottom-bar').offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         function getCanvasCoords(event) {
             const rect = canvas.getBoundingClientRect();
@@ -180,6 +200,12 @@
         }
 
         function shareCanvas() {
+
+            const fileName = window.prompt('请输入文件名（不带扩展名），或者直接点击确定使用默认文件名:', 'huoshi-drawing');
+
+            const defaultFileName = 'huoshi-drawing';
+
+ 
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = canvas.width;
@@ -191,9 +217,12 @@
             tempCtx.drawImage(canvas, 0, 0);
 
             const image = tempCanvas.toDataURL();
+
             const link = document.createElement('a');
             link.href = image;
-            link.download =  '火狮绘画hst.png';
+
+            link.download = fileName ? fileName + '.png' : defaultFileName + '.png';
+
             link.click();
         }
 
@@ -201,14 +230,32 @@
             history.back();
         }
 
+        function addImage() {
+            imageInput.click();
+        }
+
+        function loadImage(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         canvas.addEventListener('mousedown', startPaint);
         canvas.addEventListener('mousemove', paint);
         canvas.addEventListener('mouseup', stopPaint);
         canvas.addEventListener('mouseleave', stopPaint);
 
-        canvas.addEventListener('touchstart', startPaint);
-        canvas.addEventListener('touchmove', paint);
-        canvas.addEventListener('touchend', stopPaint);
+        canvas.addEventListener('touchstart', startPaint); 
+        canvas.addEventListener('touchmove', paint); 
+        canvas.addEventListener('touchend', stopPaint); 
 
         penSizeInput.addEventListener('input', function() {
             let value = Math.max(1, Math.min(20, this.value));
